@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>J.A.R.V.I.S. AI Command Center</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts - Orbitron & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Orbitron:wght@400;600;800;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            hud: ['Orbitron', 'sans-serif'],
+          },
+          colors: {
+            hud: {
+              cyan: '#00f3ff',
+              cyanDark: '#005f73',
+              red: '#ff003c',
+              emerald: '#00ff66',
+              gold: '#ffb703',
+            }
+          },
+          animation: {
+            'spin-slow': 'spin 18s linear infinite',
+            'spin-reverse': 'spin-reverse 24s linear infinite',
+            'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+            'scanline': 'scanline 8s linear infinite',
+          },
+          keyframes: {
+            'spin-reverse': {
+              '0%': { transform: 'rotate(360deg)' },
+              '100%': { transform: 'rotate(0deg)' },
+            },
+            pulseGlow: {
+              '0%, 100%': { opacity: '0.8', filter: 'drop-shadow(0 0 15px var(--glow-color))' },
+              '50%': { opacity: '1', filter: 'drop-shadow(0 0 35px var(--glow-color))' },
+            },
+            scanline: {
+              '0%': { transform: 'translateY(-100%)' },
+              '100%': { transform: 'translateY(1000%)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --hud-color: #00f3ff;
+      --hud-color-rgb: 0, 243, 255;
+      --glow-color: rgba(0, 243, 255, 0.8);
+      --bg-glass: rgba(6, 18, 36, 0.75);
+    }
+
+    .theme-red {
+      --hud-color: #ff003c;
+      --hud-color-rgb: 255, 0, 60;
+      --glow-color: rgba(255, 0, 60, 0.8);
+      --bg-glass: rgba(36, 6, 12, 0.75);
+    }
+
+    .theme-emerald {
+      --hud-color: #00ff66;
+      --hud-color-rgb: 0, 255, 102;
+      --glow-color: rgba(0, 255, 102, 0.8);
+      --bg-glass: rgba(6, 36, 18, 0.75);
+    }
+
+    .theme-gold {
+      --hud-color: #ffb703;
+      --hud-color-rgb: 255, 183, 3;
+      --glow-color: rgba(255, 183, 3, 0.8);
+      --bg-glass: rgba(36, 28, 6, 0.75);
+    }
+
+    .hud-text {
+      color: var(--hud-color);
+      text-shadow: 0 0 10px var(--glow-color);
+    }
+
+    .hud-border {
+      border-color: rgba(var(--hud-color-rgb), 0.4);
+      box-shadow: 0 0 15px rgba(var(--hud-color-rgb), 0.15), inset 0 0 15px rgba(var(--hud-color-rgb), 0.1);
+    }
+
+    .hud-border-glow {
+      border-color: var(--hud-color);
+      box-shadow: 0 0 20px var(--glow-color);
+    }
+
+    .hud-bg-glass {
+      background: var(--bg-glass);
+      backdrop-filter: blur(12px);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(var(--hud-color-rgb), 0.4);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--hud-color);
+    }
+
+    /* Hexagon overlay grid */
+    .hex-bg {
+      background-image: radial-gradient(circle, rgba(var(--hud-color-rgb), 0.15) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+  </style>
+</head>
+
+<body class="h-full font-sans antialiased bg-slate-950 text-slate-100 overflow-hidden select-none theme-cyan">
+  <!-- LOGIN OVERLAY -->
+  <div id="loginOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-xl hex-bg transition-opacity duration-500">
+    <div class="hud-bg-glass hud-border p-8 rounded-2xl max-w-md w-full mx-4 text-center border relative overflow-hidden">
+      <div class="absolute -top-24 -left-24 w-48 h-48 rounded-full bg-[var(--hud-color)] opacity-20 blur-3xl"></div>
+      <div class="absolute -bottom-24 -right-24 w-48 h-48 rounded-full bg-[var(--hud-color)] opacity-20 blur-3xl"></div>
+
+      <div class="mb-6 inline-flex p-4 rounded-full bg-slate-900/80 border hud-border">
+        <i data-lucide="shield-check" class="w-12 h-12 hud-text"></i>
+      </div>
+
+      <h1 class="font-hud text-2xl font-bold tracking-widest hud-text mb-1">STARK SECURITY</h1>
+      <p class="text-xs text-slate-400 font-mono tracking-wider mb-6">RESTRICTED ACCESS // PROTOCOL 01</p>
+
+      <form id="loginForm" class="space-y-4" onsubmit="handleLogin(event)">
+        <div class="relative">
+          <input type="password" id="passcodeInput" placeholder="Enter Access Code..." 
+            class="w-full bg-slate-900/90 border hud-border rounded-xl px-4 py-3 text-center font-mono tracking-widest text-lg focus:outline-none focus:border-[var(--hud-color)] text-slate-100 placeholder-slate-600">
+        </div>
+        <button type="submit" 
+          class="w-full py-3 px-6 rounded-xl font-hud text-sm font-semibold tracking-wider bg-[var(--hud-color)] text-slate-950 hover:brightness-125 transition-all shadow-[0_0_20px_var(--glow-color)]">
+          INITIALIZE SYSTEM
+        </button>
+      </form>
+      <p id="loginError" class="text-xs text-red-400 mt-3 hidden font-mono">ACCESS DENIED: INVALID KEY PASS</p>
+      <div class="mt-6 pt-4 border-t border-slate-800 text-[10px] font-mono text-slate-500">
+        DEFAULT ACCESS CODE: <span class="hud-text font-bold">jarvis</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP HUD CONTAINER -->
+  <div id="mainHud" class="h-full flex flex-col relative hex-bg opacity-0 transition-opacity duration-700">
+    
+    <!-- TOP HEADER / NAV BAR -->
+    <header class="h-16 border-b hud-border hud-bg-glass px-6 flex items-center justify-between z-20 relative">
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="cpu" class="w-6 h-6 hud-text"></i>
+          <span class="font-hud text-lg font-extrabold tracking-widest hud-text">J.A.R.V.I.S.</span>
+        </div>
+        <span class="hidden md:inline-block px-2.5 py-0.5 rounded text-[10px] font-mono bg-slate-900 border hud-border hud-text">
+          MARK VII v4.2
+        </span>
+      </div>
+
+      <!-- System Status Indicators -->
+      <div class="hidden lg:flex items-center space-x-8 font-mono text-xs">
+        <div class="flex items-center space-x-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-400">CORE:</span>
+          <span class="hud-text">ONLINE</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-slate-400">LATENCY:</span>
+          <span class="hud-text" id="pingDisplay">24ms</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="text-slate-400">AUDIO ENGINE:</span>
+          <span class="hud-text" id="audioEngineStatus">SYNTH READY</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center space-x-3">
+        <!-- Theme Switcher -->
+        <div class="flex items-center space-x-1 bg-slate-900/80 p-1 rounded-lg border border-slate-800">
+          <button onclick="setTheme('cyan')" title="Cyan Arc" class="w-5 h-5 rounded-full bg-cyan-400 border border-slate-700 hover:scale-110 transition-transform"></button>
+          <button onclick="setTheme('red')" title="Red Alert" class="w-5 h-5 rounded-full bg-red-500 border border-slate-700 hover:scale-110 transition-transform"></button>
+          <button onclick="setTheme('emerald')" title="Emerald Matrix" class="w-5 h-5 rounded-full bg-emerald-400 border border-slate-700 hover:scale-110 transition-transform"></button>
+          <button onclick="setTheme('gold')" title="Stark Gold" class="w-5 h-5 rounded-full bg-amber-400 border border-slate-700 hover:scale-110 transition-transform"></button>
+        </div>
+
+        <button onclick="openModal('voiceModal')" class="p-2 rounded-lg bg-slate-900/80 border hud-border hover:bg-slate-800 transition-colors hud-text" title="Voice Configuration">
+          <i data-lucide="sliders" class="w-5 h-5"></i>
+        </button>
+
+        <button onclick="openModal('symbolModal')" class="p-2 rounded-lg bg-slate-900/80 border hud-border hover:bg-slate-800 transition-colors hud-text" title="Core Symbol Manager">
+          <i data-lucide="image" class="w-5 h-5"></i>
+        </button>
+
+        <button onclick="openModal('apiModal')" class="p-2 rounded-lg bg-slate-900/80 border hud-border hover:bg-slate-800 transition-colors hud-text" title="API Key Setup">
+          <i data-lucide="key" class="w-5 h-5"></i>
+        </button>
+
+        <button onclick="lockSystem()" class="p-2 rounded-lg bg-red-950/40 border border-red-500/40 text-red-400 hover:bg-red-900/50 transition-colors" title="Lock Console">
+          <i data-lucide="lock" class="w-5 h-5"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN WORKSPACE / GRID -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden relative z-10">
+      
+      <!-- LEFT PANEL: System Metrics & Voice Synth Config -->
+      <aside class="lg:col-span-3 flex flex-col gap-4 overflow-y-auto">
+        <!-- System Status Panel -->
+        <div class="hud-bg-glass hud-border rounded-xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="font-hud text-xs tracking-wider hud-text flex items-center gap-2">
+              <i data-lucide="activity" class="w-4 h-4"></i> SYSTEM DIAGNOSTICS
+            </span>
+            <span class="text-[10px] font-mono text-slate-500">LIVE FEED</span>
+          </div>
+
+          <div class="space-y-2 font-mono text-xs">
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1">
+                <span>CPU Core Load</span>
+                <span id="cpuVal">18%</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div id="cpuBar" class="h-full bg-[var(--hud-color)] transition-all duration-500" style="width: 18%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1">
+                <span>Neural Engine Memory</span>
+                <span id="ramVal">42%</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                <div id="ramBar" class="h-full bg-[var(--hud-color)] transition-all duration-500" style="width: 42%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Voice Control Quick Settings -->
+        <div class="hud-bg-glass hud-border rounded-xl p-4 flex flex-col gap-3 flex-1">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="font-hud text-xs tracking-wider hud-text flex items-center gap-2">
+              <i data-lucide="volume-2" class="w-4 h-4"></i> VOICE SYNTHESIZER
+            </span>
+            <button onclick="testVoice()" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 border hud-border hud-text hover:brightness-125">
+              TEST VOICE
+            </button>
+          </div>
+
+          <div class="space-y-4 text-xs font-mono">
+            <div>
+              <label class="text-slate-400 block mb-1">AI Persona Preset</label>
+              <select id="personaSelect" onchange="applyPersonaPreset()" class="w-full bg-slate-900 border hud-border rounded-lg px-2.5 py-1.5 hud-text focus:outline-none">
+                <option value="jarvis">J.A.R.V.I.S. (Standard British)</option>
+                <option value="friday">F.R.I.D.A.Y. (Irish Assistant)</option>
+                <option value="tactical">T.A.C.T.I.C.A.L. (Command Relay)</option>
+                <option value="casual">C.A.S.U.A.L. (Relaxed Tone)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-slate-400 block mb-1">Selected Voice Engine</label>
+              <select id="voiceSelect" onchange="saveVoiceSettings()" class="w-full bg-slate-900 border hud-border rounded-lg px-2.5 py-1.5 hud-text focus:outline-none text-ellipsis overflow-hidden">
+                <option value="">Loading system voices...</option>
+              </select>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1">
+                <span>Pitch</span>
+                <span id="pitchVal">1.0</span>
+              </div>
+              <input type="range" id="pitchSlider" min="0.5" max="1.5" step="0.1" value="1" oninput="updateSliderLabels(); saveVoiceSettings()" class="w-full accent-[var(--hud-color)]">
+            </div>
+
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1">
+                <span>Speed / Rate</span>
+                <span id="rateVal">1.0</span>
+              </div>
+              <input type="range" id="rateSlider" min="0.5" max="1.8" step="0.1" value="1" oninput="updateSliderLabels(); saveVoiceSettings()" class="w-full accent-[var(--hud-color)]">
+            </div>
+
+            <div>
+              <div class="flex justify-between text-slate-400 mb-1">
+                <span>Volume</span>
+                <span id="volumeVal">100%</span>
+              </div>
+              <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="1" oninput="updateSliderLabels(); saveVoiceSettings()" class="w-full accent-[var(--hud-color)]">
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- CENTER PANEL: Interactive HUD Arc Reactor / Custom Logo Core -->
+      <section class="lg:col-span-5 flex flex-col items-center justify-between relative hud-bg-glass hud-border rounded-xl p-6 overflow-hidden min-h-[380px]">
+        <!-- Top Status overlay inside Core -->
+        <div class="w-full flex justify-between items-center text-[10px] font-mono text-slate-400 z-10">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-[var(--hud-color)] animate-ping"></span>
+            <span id="coreStatusLabel" class="hud-text font-bold">CORE ONLINE</span>
+          </div>
+          <div id="symbolPresetName" class="tracking-widest hud-text">ARC REACTOR MK VII</div>
+        </div>
+
+        <!-- CENTER DISPLAY CORE SYMBOL -->
+        <div class="my-auto relative flex items-center justify-center">
+          <!-- Rotating Outer Sci-Fi Rings -->
+          <div class="absolute w-72 h-72 rounded-full border border-dashed border-[var(--hud-color)] opacity-40 animate-spin-slow"></div>
+          <div class="absolute w-80 h-80 rounded-full border border-slate-700 opacity-60"></div>
+          <div class="absolute w-64 h-64 rounded-full border-2 border-t-transparent border-b-transparent border-[var(--hud-color)] opacity-60 animate-spin-reverse"></div>
+
+          <!-- Interactive Center Symbol Container -->
+          <div id="centerCoreContainer" class="w-48 h-48 rounded-full flex items-center justify-center relative cursor-pointer group transition-all duration-500 animate-pulse-glow" onclick="triggerCorePulse()">
+            
+            <!-- Dynamic Custom Image or Presets rendered here -->
+            <div id="symbolImageContainer" class="w-full h-full rounded-full flex items-center justify-center overflow-hidden p-2">
+              <!-- Default Arc SVG -->
+              <svg id="defaultArcSvg" viewBox="0 0 100 100" class="w-36 h-36 hud-text drop-shadow-[0_0_20px_var(--glow-color)]">
+                <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="2" opacity="0.6"/>
+                <circle cx="50" cy="50" r="32" fill="none" stroke="currentColor" stroke-width="3"/>
+                <circle cx="50" cy="50" r="18" fill="rgba(var(--hud-color-rgb),0.2)" stroke="currentColor" stroke-width="2"/>
+                <circle cx="50" cy="50" r="8" fill="currentColor"/>
+                <path d="M 50 5 L 50 25 M 50 75 L 50 95 M 5 50 L 25 50 M 75 50 L 95 50" stroke="currentColor" stroke-width="2"/>
+              </svg>
+              <img id="customUploadedImage" class="w-full h-full object-contain hidden filter drop-shadow-[0_0_15px_var(--glow-color)]" alt="Custom Core Symbol"/>
+            </div>
+
+            <!-- Hover overlay -->
+            <div class="absolute inset-0 rounded-full bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-center p-2">
+              <i data-lucide="upload" class="w-6 h-6 hud-text mb-1"></i>
+              <span class="text-[10px] font-hud hud-text font-bold">CHANGE CORE SYMBOL</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audio Frequency Visualizer Canvas -->
+        <div class="w-full h-16 relative z-10 mt-2">
+          <canvas id="visualizerCanvas" class="w-full h-full rounded-lg"></canvas>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL: AI Terminal & Chat Feed -->
+      <aside class="lg:col-span-4 flex flex-col hud-bg-glass hud-border rounded-xl p-4 overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+          <div class="flex items-center space-x-2">
+            <i data-lucide="message-square" class="w-4 h-4 hud-text"></i>
+            <span class="font-hud text-xs tracking-wider hud-text">AI COMMAND TERMINAL</span>
+          </div>
+          <button onclick="clearChat()" class="text-[10px] font-mono text-slate-500 hover:text-slate-300">CLEAR LOG</button>
+        </div>
+
+        <!-- Chat History Stream -->
+        <div id="chatHistory" class="flex-1 overflow-y-auto space-y-3 pr-2 font-mono text-xs">
+          <!-- Jarvis Welcome Message -->
+          <div class="bg-slate-900/80 border hud-border p-3 rounded-lg">
+            <div class="flex items-center justify-between mb-1">
+              <span class="hud-text font-bold font-hud">J.A.R.V.I.S.</span>
+              <span class="text-[9px] text-slate-500" id="welcomeTime">00:00</span>
+            </div>
+            <p class="text-slate-300 leading-relaxed">
+              At your service, Boss. All sub-routines online. Voice synthesis connected. How may I assist you today?
+            </p>
+          </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <div class="mt-3 pt-3 border-t border-slate-800">
+          <form id="chatForm" onsubmit="handleChatSubmit(event)" class="flex items-center gap-2">
+            <button type="button" id="micBtn" onclick="toggleVoiceRecognition()" 
+              class="p-2.5 rounded-lg bg-slate-900 border hud-border text-slate-400 hover:hud-text transition-colors" title="Toggle Voice Input">
+              <i data-lucide="mic" class="w-4 h-4"></i>
+            </button>
+
+            <input type="text" id="userInput" placeholder="Ask J.A.R.V.I.S. a command..." 
+              class="flex-1 bg-slate-900/90 border hud-border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-[var(--hud-color)] text-slate-100 placeholder-slate-600">
+
+            <button type="submit" class="p-2.5 rounded-lg bg-[var(--hud-color)] text-slate-950 font-bold hover:brightness-125 transition-all shadow-[0_0_10px_var(--glow-color)]">
+              <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+          </form>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- MODAL 1: VOICE ENGINE CONFIG -->
+  <div id="voiceModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="hud-bg-glass hud-border rounded-xl p-6 max-w-lg w-full">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+        <h3 class="font-hud text-sm hud-text font-bold flex items-center gap-2">
+          <i data-lucide="sliders" class="w-4 h-4"></i> VOICE SYNTHESIS CONTROL PANEL
+        </h3>
+        <button onclick="closeModal('voiceModal')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <p class="text-xs text-slate-400 mb-4 font-mono">
+        Select from your operating system's installed speech engines. Pitch and rate affect voice delivery timing.
+      </p>
+
+      <div class="space-y-4 font-mono text-xs">
+        <div>
+          <label class="text-slate-300 block mb-1">Installed Speech Voices</label>
+          <select id="modalVoiceSelect" onchange="syncModalVoiceToMain()" class="w-full bg-slate-900 border hud-border rounded-lg p-2 hud-text focus:outline-none">
+          </select>
+        </div>
+        
+        <div class="pt-2 flex justify-end gap-2">
+          <button onclick="testVoice()" class="px-4 py-2 rounded-lg bg-slate-900 border hud-border hud-text">Test Engine</button>
+          <button onclick="closeModal('voiceModal')" class="px-4 py-2 rounded-lg bg-[var(--hud-color)] text-slate-950 font-bold">Save & Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: CORE SYMBOL MANAGER (File Upload & Presets) -->
+  <div id="symbolModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="hud-bg-glass hud-border rounded-xl p-6 max-w-lg w-full">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+        <h3 class="font-hud text-sm hud-text font-bold flex items-center gap-2">
+          <i data-lucide="image" class="w-4 h-4"></i> CENTER CORE SYMBOL MANAGER
+        </h3>
+        <button onclick="closeModal('symbolModal')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="space-y-5 font-mono text-xs">
+        <!-- Local File Upload Section -->
+        <div>
+          <label class="text-slate-300 block mb-1 font-bold">1. Upload Custom Image / Logo File</label>
+          <p class="text-[11px] text-slate-400 mb-2">Upload any PNG, SVG, or JPG image from your local computer files to replace the center HUD core image.</p>
+          
+          <input type="file" id="customFileInput" accept="image/*" onchange="handleCustomFileUpload(event)" class="hidden">
+          <button onclick="document.getElementById('customFileInput').click()" 
+            class="w-full py-3 px-4 rounded-xl border border-dashed hud-border bg-slate-900/60 hover:bg-slate-900 flex items-center justify-center gap-2 hud-text transition-colors">
+            <i data-lucide="upload-cloud" class="w-5 h-5"></i> Choose Local Image File...
+          </button>
+        </div>
+
+        <!-- Built-in Presets -->
+        <div>
+          <label class="text-slate-300 block mb-2 font-bold">2. Or Choose Built-in Core Preset</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="selectPresetSymbol('arc')" class="p-3 rounded-lg bg-slate-900 border hud-border hover:bg-slate-800 text-left">
+              <div class="hud-text font-bold">Arc Reactor</div>
+              <div class="text-[10px] text-slate-500">Classic Stark Blue Core</div>
+            </button>
+            <button onclick="selectPresetSymbol('stark')" class="p-3 rounded-lg bg-slate-900 border hud-border hover:bg-slate-800 text-left">
+              <div class="hud-text font-bold">Stark Emblem</div>
+              <div class="text-[10px] text-slate-500">A.I. Tech Badge</div>
+            </button>
+            <button onclick="selectPresetSymbol('reticle')" class="p-3 rounded-lg bg-slate-900 border hud-border hover:bg-slate-800 text-left">
+              <div class="hud-text font-bold">Tactical Reticle</div>
+              <div class="text-[10px] text-slate-500">Targeting Grid</div>
+            </button>
+            <button onclick="selectPresetSymbol('nuclear')" class="p-3 rounded-lg bg-slate-900 border hud-border hover:bg-slate-800 text-left">
+              <div class="hud-text font-bold">Quantum Core</div>
+              <div class="text-[10px] text-slate-500">Particle Accelerator</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2 flex justify-end">
+          <button onclick="closeModal('symbolModal')" class="px-4 py-2 rounded-lg bg-[var(--hud-color)] text-slate-950 font-bold">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: GEMINI API KEY SETUP -->
+  <div id="apiModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="hud-bg-glass hud-border rounded-xl p-6 max-w-lg w-full">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+        <h3 class="font-hud text-sm hud-text font-bold flex items-center gap-2">
+          <i data-lucide="key" class="w-4 h-4"></i> GEMINI API CONFIGURATION
+        </h3>
+        <button onclick="closeModal('apiModal')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <div class="space-y-4 font-mono text-xs">
+        <p class="text-slate-300">
+          Enter your optional Google Gemini API key to connect live cloud intelligence. If left blank, J.A.R.V.I.S. will operate in simulated internal directive mode.
+        </p>
+
+        <div>
+          <label class="text-slate-400 block mb-1">Gemini API Key</label>
+          <input type="password" id="apiKeyInput" placeholder="AIzaSy..." 
+            class="w-full bg-slate-900 border hud-border rounded-lg p-2.5 hud-text focus:outline-none">
+        </div>
+
+        <div class="pt-2 flex justify-between items-center">
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-slate-500 hover:hud-text text-[10px] underline">Get Gemini Key &rarr;</a>
+          <button onclick="saveApiKey()" class="px-4 py-2 rounded-lg bg-[var(--hud-color)] text-slate-950 font-bold">Save API Key</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // System State Variables
+    let currentApiKey = localStorage.getItem('jarvis_api_key') || '';
+    let selectedVoice = null;
+    let voicesList = [];
+    let audioCtx = null;
+    let visualizerAnalyser = null;
+    let speechRecognition = null;
+    let isListening = false;
+    let customUploadedImageData = localStorage.getItem('jarvis_custom_logo') || null;
+
+    // Default System Settings
+    let voiceSettings = JSON.parse(localStorage.getItem('jarvis_voice_config')) || {
+      pitch: 1.0,
+      rate: 1.0,
+      volume: 1.0,
+      voiceName: '',
+      persona: 'jarvis'
+    };
+
+    // Initialize application on load
+    window.onload = function() {
+      lucide.createIcons();
+      initAudioEngine();
+      populateVoiceList();
+      if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+      }
+
+      // Restore custom logo if saved
+      if (customUploadedImageData) {
+        displayCustomLogo(customUploadedImageData);
+      }
+
+      // Set timestamp
+      document.getElementById('welcomeTime').textContent = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+      // Start Metric Simulation
+      setInterval(updateMetrics, 2000);
+      setupVisualizerCanvas();
+      
+      // Load stored API key input field
+      if (currentApiKey) {
+        document.getElementById('apiKeyInput').value = currentApiKey;
+      }
+    };
+
+    // Sound FX Generator using Web Audio API
+    function initAudioEngine() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+        visualizerAnalyser = audioCtx.createAnalyser();
+        visualizerAnalyser.fftSize = 64;
+      } catch (e) {
+        console.warn('Web Audio API not fully supported on this browser.');
+      }
+    }
+
+    function playBeep(freq = 800, duration = 0.08, type = 'sine') {
+      if (!audioCtx) return;
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // Security Lock Screen Handler
+    function handleLogin(e) {
+      e.preventDefault();
+      const code = document.getElementById('passcodeInput').value;
+      if (code.toLowerCase() === 'jarvis' || code === '1234') {
+        document.getElementById('loginOverlay').classList.add('opacity-0', 'pointer-events-none');
+        document.getElementById('mainHud').classList.remove('opacity-0');
+        playBeep(1200, 0.15, 'triangle');
+        setTimeout(() => playBeep(1600, 0.2, 'sine'), 100);
+        speakJarvis("System access granted. Welcome back, Boss.");
+      } else {
+        document.getElementById('loginError').classList.remove('hidden');
+        playBeep(300, 0.3, 'sawtooth');
+      }
+    }
+
+    function lockSystem() {
+      document.getElementById('loginOverlay').classList.remove('opacity-0', 'pointer-events-none');
+      document.getElementById('mainHud').classList.add('opacity-0');
+      document.getElementById('passcodeInput').value = '';
+      playBeep(400, 0.2, 'sawtooth');
+    }
+
+    // Theme Customization
+    function setTheme(theme) {
+      document.body.className = `h-full font-sans antialiased bg-slate-950 text-slate-100 overflow-hidden select-none theme-${theme}`;
+      playBeep(1000, 0.05);
+    }
+
+    // Voice Synthesis Manager
+    function populateVoiceList() {
+      if (typeof speechSynthesis === 'undefined') return;
+      voicesList = speechSynthesis.getVoices();
+      
+      const voiceSelect = document.getElementById('voiceSelect');
+      const modalVoiceSelect = document.getElementById('modalVoiceSelect');
+      
+      voiceSelect.innerHTML = '';
+      modalVoiceSelect.innerHTML = '';
+
+      voicesList.forEach((voice) => {
+        const option = document.createElement('option');
+        option.textContent = `${voice.name} (${voice.lang})`;
+        option.setAttribute('data-name', voice.name);
+        
+        const modalOption = option.cloneNode(true);
+        
+        voiceSelect.appendChild(option);
+        modalVoiceSelect.appendChild(modalOption);
+      });
+
+      // Restore saved voice setting
+      if (voiceSettings.voiceName) {
+        voiceSelect.value = voiceSettings.voiceName;
+        modalVoiceSelect.value = voiceSettings.voiceName;
+      }
+    }
+
+    function saveVoiceSettings() {
+      voiceSettings.pitch = parseFloat(document.getElementById('pitchSlider').value);
+      voiceSettings.rate = parseFloat(document.getElementById('rateSlider').value);
+      voiceSettings.volume = parseFloat(document.getElementById('volumeSlider').value);
+      voiceSettings.voiceName = document.getElementById('voiceSelect').value;
+      voiceSettings.persona = document.getElementById('personaSelect').value;
+
+      localStorage.setItem('jarvis_voice_config', JSON.stringify(voiceSettings));
+    }
+
+    function updateSliderLabels() {
+      document.getElementById('pitchVal').textContent = document.getElementById('pitchSlider').value;
+      document.getElementById('rateVal').textContent = document.getElementById('rateSlider').value;
+      document.getElementById('volumeVal').textContent = Math.round(document.getElementById('volumeSlider').value * 100) + '%';
+    }
+
+    function syncModalVoiceToMain() {
+      const val = document.getElementById('modalVoiceSelect').value;
+      document.getElementById('voiceSelect').value = val;
+      saveVoiceSettings();
+    }
+
+    function applyPersonaPreset() {
+      const persona = document.getElementById('personaSelect').value;
+      if (persona === 'jarvis') {
+        document.getElementById('pitchSlider').value = 0.9;
+        document.getElementById('rateSlider').value = 1.0;
+      } else if (persona === 'friday') {
+        document.getElementById('pitchSlider').value = 1.2;
+        document.getElementById('rateSlider').value = 1.1;
+      } else if (persona === 'tactical') {
+        document.getElementById('pitchSlider').value = 0.8;
+        document.getElementById('rateSlider').value = 1.2;
+      } else if (persona === 'casual') {
+        document.getElementById('pitchSlider').value = 1.0;
+        document.getElementById('rateSlider').value = 1.0;
+      }
+      updateSliderLabels();
+      saveVoiceSettings();
+      playBeep(1100, 0.08);
+    }
+
+    function speakJarvis(text) {
+      if ('speechSynthesis' in window) {
+        speechSynthesis.cancel(); // Stop prior speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        utterance.pitch = parseFloat(document.getElementById('pitchSlider').value);
+        utterance.rate = parseFloat(document.getElementById('rateSlider').value);
+        utterance.volume = parseFloat(document.getElementById('volumeSlider').value);
+
+        const selectedVoiceName = document.getElementById('voiceSelect').value;
+        const voiceObj = voicesList.find(v => v.name === selectedVoiceName || `${v.name} (${v.lang})` === selectedVoiceName);
+        if (voiceObj) utterance.voice = voiceObj;
+
+        // Visualizer animation activation flag
+        utterance.onstart = () => {
+          document.getElementById('coreStatusLabel').textContent = "AUDIO SYNTHESIZING";
+        };
+
+        utterance.onend = () => {
+          document.getElementById('coreStatusLabel').textContent = "CORE ONLINE";
+        };
+
+        speechSynthesis.speak(utterance);
+      }
+    }
+
+    function testVoice() {
+      speakJarvis("Audio engine test. All J.A.R.V.I.S. voice response parameters functioning normally.");
+    }
+
+    // Custom Local Symbol File Upload
+    function handleCustomFileUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const base64Data = e.target.result;
+          displayCustomLogo(base64Data);
+          localStorage.setItem('jarvis_custom_logo', base64Data);
+          closeModal('symbolModal');
+          playBeep(1400, 0.1);
+          speakJarvis("Center core emblem updated from local file.");
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function displayCustomLogo(base64Image) {
+      const defaultSvg = document.getElementById('defaultArcSvg');
+      const customImg = document.getElementById('customUploadedImage');
+
+      defaultSvg.classList.add('hidden');
+      customImg.classList.remove('hidden');
+      customImg.src = base64Image;
+
+      document.getElementById('symbolPresetName').textContent = "CUSTOM LOCAL EMBLEM";
+    }
+
+    function selectPresetSymbol(preset) {
+      const defaultSvg = document.getElementById('defaultArcSvg');
+      const customImg = document.getElementById('customUploadedImage');
+      
+      customImg.classList.add('hidden');
+      defaultSvg.classList.remove('hidden');
+
+      if (preset === 'arc') {
+        document.getElementById('symbolPresetName').textContent = "ARC REACTOR MK VII";
+      } else if (preset === 'stark') {
+        document.getElementById('symbolPresetName').textContent = "STARK TECH CORE";
+      } else if (preset === 'reticle') {
+        document.getElementById('symbolPresetName').textContent = "TACTICAL RETICLE";
+      } else if (preset === 'nuclear') {
+        document.getElementById('symbolPresetName').textContent = "QUANTUM CORE";
+      }
+
+      localStorage.removeItem('jarvis_custom_logo');
+      closeModal('symbolModal');
+      playBeep(1200, 0.08);
+    }
+
+    // AI Chat & Gemini API Integration
+    async function handleChatSubmit(e) {
+      e.preventDefault();
+      const inputEl = document.getElementById('userInput');
+      const userMessage = inputEl.value.trim();
+      if (!userMessage) return;
+
+      appendChatMessage('USER', userMessage);
+      inputEl.value = '';
+      playBeep(900, 0.05);
+
+      // Check if Gemini API key is configured
+      if (currentApiKey) {
+        try {
+          appendChatMessage('J.A.R.V.I.S.', 'Processing query with cloud neural engine...');
+          const aiResponse = await callGeminiApi(userMessage);
+          // Remove thinking placeholder
+          const history = document.getElementById('chatHistory');
+          history.removeChild(history.lastChild);
+          
+          appendChatMessage('J.A.R.V.I.S.', aiResponse);
+          speakJarvis(aiResponse);
+        } catch (error) {
+          appendChatMessage('J.A.R.V.I.S.', 'An error occurred while connecting to Gemini API. Falling back to local response.');
+          speakJarvis("Apologies, I encountered a communication error with my cloud servers.");
+        }
+      } else {
+        // Fallback local simulated AI logic
+        const localReply = generateLocalJarvisResponse(userMessage);
+        setTimeout(() => {
+          appendChatMessage('J.A.R.V.I.S.', localReply);
+          speakJarvis(localReply);
+        }, 500);
+      }
+    }
+
+    async function callGeminiApi(prompt) {
+      const systemPrompt = "Act as J.A.R.V.I.S., Tony Stark's futuristic, highly polite, witty, and concise AI assistant. Respond in 1 to 3 short sentences.";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${currentApiKey}`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        })
+      });
+
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "I was unable to synthesize a response from the satellite data.";
+    }
+
+    function generateLocalJarvisResponse(query) {
+      const text = query.toLowerCase();
+      if (text.includes('hello') || text.includes('hi')) return "Greetings, Boss. All diagnostic checks are green.";
+      if (text.includes('status') || text.includes('system')) return "All core power grids are operating at peak efficiency.";
+      if (text.includes('who are you')) return "I am J.A.R.V.I.S., Just A Rather Very Intelligent System.";
+      if (text.includes('light') || text.includes('govee')) return "Lighting sub-routines stand ready for your command.";
+      return "Command registered. Operating in offline local simulation mode.";
+    }
+
+    function appendChatMessage(sender, text) {
+      const history = document.getElementById('chatHistory');
+      const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      
+      const msgDiv = document.createElement('div');
+      msgDiv.className = sender === 'USER' 
+        ? 'bg-slate-900/40 border border-slate-800 p-3 rounded-lg text-right'
+        : 'bg-slate-900/80 border hud-border p-3 rounded-lg';
+
+      msgDiv.innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+          <span class="hud-text font-bold font-hud">${sender}</span>
+          <span class="text-[9px] text-slate-500">${timeStr}</span>
+        </div>
+        <p class="text-slate-300 leading-relaxed">${text}</p>
+      `;
+
+      history.appendChild(msgDiv);
+      history.scrollTop = history.scrollHeight;
+    }
+
+    function clearChat() {
+      document.getElementById('chatHistory').innerHTML = '';
+      playBeep(600, 0.05);
+    }
+
+    // Voice Recognition (Speech to Text)
+    function toggleVoiceRecognition() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        alert("Speech Recognition is not supported in this browser tab.");
+        return;
+      }
+
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (isListening) {
+        speechRecognition.stop();
+        return;
+      }
+
+      speechRecognition = new SpeechRec();
+      speechRecognition.continuous = false;
+      speechRecognition.interimResults = false;
+
+      speechRecognition.onstart = () => {
+        isListening = true;
+        document.getElementById('micBtn').classList.add('hud-border-glow', 'text-red-400');
+        playBeep(1200, 0.1);
+      };
+
+      speechRecognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        document.getElementById('userInput').value = transcript;
+        handleChatSubmit(new Event('submit'));
+      };
+
+      speechRecognition.onend = () => {
+        isListening = false;
+        document.getElementById('micBtn').classList.remove('hud-border-glow', 'text-red-400');
+      };
+
+      speechRecognition.start();
+    }
+
+    // Modal Helpers
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      playBeep(1000, 0.05);
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      playBeep(800, 0.05);
+    }
+
+    function saveApiKey() {
+      currentApiKey = document.getElementById('apiKeyInput').value.trim();
+      localStorage.setItem('jarvis_api_key', currentApiKey);
+      closeModal('apiModal');
+      speakJarvis("Gemini API security credentials stored.");
+    }
+
+    function triggerCorePulse() {
+      playBeep(1500, 0.1, 'sine');
+      speakJarvis("Arc reactor core power cycling.");
+    }
+
+    // Audio Visualizer Background Canvas
+    function setupVisualizerCanvas() {
+      const canvas = document.getElementById('visualizerCanvas');
+      const ctx = canvas.getContext('2d');
+
+      function render() {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const bars = 32;
+        const barWidth = canvas.width / bars;
+
+        for (let i = 0; i < bars; i++) {
+          // Synthetic audio bounce when speaking or idle
+          const isSpeaking = speechSynthesis.speaking;
+          const height = isSpeaking 
+            ? Math.random() * canvas.height * 0.8 + 5
+            : Math.sin(Date.now() / 200 + i) * 6 + 8;
+
+          ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--hud-color').trim() || '#00f3ff';
+          ctx.fillRect(i * barWidth, canvas.height - height, barWidth - 2, height);
+        }
+
+        requestAnimationFrame(render);
+      }
+      render();
+    }
+
+    // Dynamic System Diagnostics Simulation
+    function updateMetrics() {
+      const cpu = Math.floor(Math.random() * 25) + 10;
+      const ram = Math.floor(Math.random() * 15) + 38;
+      
+      document.getElementById('cpuVal').textContent = `${cpu}%`;
+      document.getElementById('cpuBar').style.width = `${cpu}%`;
+
+      document.getElementById('ramVal').textContent = `${ram}%`;
+      document.getElementById('ramBar').style.width = `${ram}%`;
+
+      document.getElementById('pingDisplay').textContent = `${Math.floor(Math.random() * 10) + 18}ms`;
+    }
+  </script>
+</body>
+</html>
